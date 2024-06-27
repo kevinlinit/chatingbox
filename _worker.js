@@ -1,28 +1,74 @@
 export default {
-    async fetch(request, env) {
-        const url = new URL(request.url);
-        console.log(`Received request for URL: ${request.url}`);
-        url.host = 'copilot.bawcat.wiki';
-        const headers = new Headers(request.headers);
-        headers.set('Accept', '*/*');
-        headers.set('Accept-Encoding', 'gzip,deflate,br');
-        headers.set('Content-Type', 'application/json');
-        headers.set('Editor-Plugin-Version', 'copilot-intellij/1.5.11.5872');
-        headers.set('Editor-Version', 'JetBrains-GO/241.18034.61');
-        headers.set('Openai-Intent', 'copilot-ghost');
-        headers.set('Openai-Organization', 'github-copilot');
-        headers.set('User-Agent', 'GithubCopilot/1.207.0');
-        headers.set('Vscode-Machineid', 'b5265e3c55fa4ef610974f0a0b40e1f5b113a4bd1e95acea39194967a9a2aa1e');
-        headers.set('Vscode-Sessionid', 'dea3b9f2-198f-481d-b63d-6186772786f01719451563061');
-        headers.set('X-Forwarded-For', '59.174.150.29');
-        headers.set('X-Forwarded-Proto', 'https');
-        headers.set('X-Forwarded-Scheme', 'https');
-        headers.set('X-Real-Ip', '59.174.150.29');
-        headers.set('X-Request-Id', '061df0eb-deef-40af-b07a-bc7bf9c90a0f');
-        request = new Request(request.url, {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    console.log(`Received request for URL: ${request.url}`);
+
+    if (url.pathname.startsWith('/v1/')) {
+      url.host = 'api.oaifree.com';
+      if (['POST', 'PUT'].includes(request.method)) {
+        const reqBody = await request.json();
+        if (reqBody && reqBody.model) {
+          reqBody.model = reqBody.model.replace('gpt-4-gizmo-', '');
+          request = new Request(request.url, {
             method: request.method,
-            headers: headers,
-            body: request.body
-        });
+            headers: request.headers,
+            body: JSON.stringify(reqBody)
+          });
+        }
+      }
+    } else if (['/backend-api/', '/public-api/'].some(path => url.pathname.startsWith(path))) {
+      url.host = 'chat.oaifree.com';
+      url.pathname = `/dad04481-fa3f-494e-b90c-b822128073e5${url.pathname}`;
+    } else if (['/token', '/static', '/cdn-cgi'].some(path => url.pathname.startsWith(path))) {
+      url.host = 'chat.oaifree.com';
+      return fetch(url.toString(), request);
+    } else {
+      url.host = 'chat.oaifree.com';
     }
-}
+
+    const incomingApiKey = request.headers.get('Authorization')?.replace('Bearer ', '');
+    if (incomingApiKey !== env.API_KEY) {
+      console.error('Invalid API Key');
+      return new Response('Invalid API Key', { status: 401 });
+    }
+
+    const tokens = env.ACCESS_TOKEN.split(',');
+    let retryCount = 0;
+
+    while (retryCount < tokens.length) {
+      const headers = new Headers(request.headers);
+      let authorizationKey = `Bearer ${tokens[retryCount]}`;
+      if (env.CHATGPT_ACCOUNT_ID) {
+        authorizationKey += `,${env.CHATGPT_ACCOUNT_ID}`;
+      }
+      headers.set('Authorization', authorizationKey);
+
+      for (const key of headers.keys()) {
+        if (key.toLowerCase().startsWith('x-') && key !== 'x-api-key') {
+          headers.delete(key);
+        }
+      }
+
+      url.protocol = 'https:';
+      url.port = '';
+      const modifiedRequest = new Request(url.toString(), {
+        method: request.method,
+        headers,
+        body: request.body,
+      });
+
+      console.log(`Attempting fetch with token index ${retryCount}`);
+      const response = await fetch(modifiedRequest);
+      if (response.ok) {
+        console.log(`Request successful with token index ${retryCount}`);
+        return response;
+      }
+
+      console.warn(`Request failed with token index ${retryCount}, status: ${response.status}`);
+      retryCount++;
+    }
+
+    console.error('All tokens failed after retries');
+    return new Response('All tokens failed', { status: 401 });
+  },
+};
