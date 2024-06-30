@@ -1,4 +1,4 @@
-Responseexport default {
+export default {
   async fetch(request) {
     /**
      * rawHtmlResponse returns HTML inputted directly
@@ -47,7 +47,7 @@ Responseexport default {
     if (request.method === "POST") {
       const reqBody = await readRequestBody(request);
       const retBody = `The request body sent in was ${reqBody}`;
-      return new Response(request);
+      return new Response(retBody);
     } else if (request.method === "GET") {
       return new Response("The request was a GET");
     }
