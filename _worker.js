@@ -45,6 +45,7 @@ export default {
       return rawHtmlResponse(someForm);
     }
     if (request.method === "POST") {
+      console.log(JSON.stringify(request));
       const reqBody = await readRequestBody(request);
       const retBody = `The request body sent in was ${reqBody}`;
       return new Response(retBody);
