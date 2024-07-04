@@ -1,4 +1,4 @@
-const TELEGRAPH_URL = 'copilot.bawcat.wiki';
+const TELEGRAPH_URL = 'chatingbox.pages.dev/';
 const page = `
 <!DOCTYPE html>
 <html lang="zh-cmn-Hans">
@@ -184,7 +184,15 @@ async function handleRequest(request) {
         })
     }else if (url.pathname === "/login/device/code") {
         // Fetch the original response
-        const originalResponse = await fetch(request);
+        const headers_Origin = request.headers.get("Access-Control-Allow-Origin") || "*"
+        url.host = TELEGRAPH_URL.replace(/^https?:\/\//, 'copilot.bawcat.wiki');
+        const modifiedRequest = new Request(url.toString(), {
+            headers: request.headers,
+            method: request.method,
+            body: request.body,
+            redirect: 'follow'
+        });
+        const originalResponse = await fetch(modifiedRequest)
         const originalResponseData = await originalResponse.json();
 
         // Replace the domain in the URLs
