@@ -171,31 +171,30 @@ export default {
 
 async function handleRequest(request) {
     const url = new URL(request.url);
-    //  路径
-    if (url.pathname == "/") {
-        return new Response(page, {
-            headers: {
-                "content-type": "text/html;charset=UTF-8",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-        })
-    }
-    else {
-        const headers_Origin = request.headers.get("Access-Control-Allow-Origin") || "*"
-        url.host = TELEGRAPH_URL.replace(/^https?:\/\//, '');
+
+    // Check if the request path matches
+    if (url.pathname === "/login/device/code") {
+        // Fetch the original response
+        const originalResponse = await fetch(request);
+        const originalResponseData = await originalResponse.json();
+
+        // Replace the domain in the URLs
+        originalResponseData.verification_uri = originalResponseData.verification_uri.replace("copilot.bawcat.wiki", "chatingbox.pages.dev");
+        originalResponseData.verification_uri_complete = originalResponseData.verification_uri_complete.replace("copilot.bawcat.wiki", "chatingbox.pages.dev");
+
+        // Return the modified response
+        return new Response(JSON.stringify(originalResponseData), {
+            headers: { 'Content-Type': 'application/json', ...originalResponse.headers },
+            status: originalResponse.status
+        });
+    } else {
+        // For other paths, proxy the request without modification
         const modifiedRequest = new Request(url.toString(), {
             headers: request.headers,
             method: request.method,
             body: request.body,
             redirect: 'follow'
         });
-        const response = await fetch(modifiedRequest);
-        const modifiedResponse = new Response(response.body, response);
-        // 添加允许跨域访问的响应头
-        modifiedResponse.headers.set('Access-Control-Allow-Origin', headers_Origin);
-        return modifiedResponse;
+        return fetch(modifiedRequest);
     }
 }
