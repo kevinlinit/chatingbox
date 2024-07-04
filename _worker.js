@@ -1,4 +1,4 @@
-const TELEGRAPH_URL = 'chatingbox.pages.dev/';
+const TELEGRAPH_URL = 'chatingbox.pages.dev';
 const page = `
 <!DOCTYPE html>
 <html lang="zh-cmn-Hans">
